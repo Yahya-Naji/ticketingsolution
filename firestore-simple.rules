@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // TEMPORARY SIMPLE RULES FOR TESTING
+    // Replace with secure rules in production
+    
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Ideas collection - allow authenticated users to create and read
+    match /ideas/{ideaId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+      
+      // Votes subcollection
+      match /votes/{voteId} {
+        allow read, write: if request.auth != null;
+      }
+      
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Email verifications - for registration
+    match /email_verifications/{tokenId} {
+      allow read, write: if true; // Needed for server-side API
+    }
+    
+    // Other collections
+    match /statuses/{statusId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /analytics/{analyticsId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /invitations/{invitationId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /systemLogs/{logId} {
+      allow read: if request.auth != null;
+    }
+  }
+}

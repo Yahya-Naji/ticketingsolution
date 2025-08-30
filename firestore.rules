@@ -1,0 +1,278 @@
+rules_version = '2';
+
+service cloud.firestore {
+
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is admin
+
+    function isAdmin() {
+
+      return request.auth != null && 
+
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    }
+
+    // Helper function to check if user is authenticated
+
+    function isAuthenticated() {
+
+      return request.auth != null;
+
+    }
+
+    // Helper function to check if user owns the resource
+
+    function isOwner(authorId) {
+
+      return request.auth != null && request.auth.uid == authorId;
+
+    }
+
+    // USERS COLLECTION
+
+    match /users/{userId} {
+
+      // Users can read and write their own profile
+
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+
+      // Admins can read all user profiles (for user management)
+
+      allow read: if isAdmin();
+
+      // Admins can update user roles and manage accounts
+
+      allow update: if isAdmin();
+
+    }
+
+    // IDEAS COLLECTION
+
+    match /ideas/{ideaId} {
+
+      // Read permissions:
+
+      // - Anyone can read public ideas
+
+      // - Authors can read their own private ideas
+
+      // - Admins can read all ideas (for moderation)
+
+      allow read: if isAuthenticated() && 
+
+        (resource.data.isPublic == true || 
+
+         isOwner(resource.data.authorId) ||
+
+         isAdmin());
+
+      // Create permissions:
+
+      // - Authenticated users can create ideas
+
+      // - Must set themselves as the author
+
+      allow create: if isAuthenticated() &&
+
+        request.auth.uid == request.resource.data.authorId &&
+
+        request.resource.data.keys().hasAll(['title', 'description', 'authorId', 'authorName', 'isPublic', 'status']);
+
+      // Update permissions:
+
+      // - Authors can edit their own ideas (title, description only)
+
+      // - Admins can update any idea (status, visibility, moderation)
+
+      allow update: if isAuthenticated() && 
+
+        (isOwner(resource.data.authorId) ||
+
+         isAdmin());
+
+      // Delete permissions:
+
+      // - Only admins can delete ideas (for moderation)
+
+      allow delete: if isAdmin();
+
+    }
+
+    // VOTES SUBCOLLECTION
+
+    match /ideas/{ideaId}/votes/{voteId} {
+
+      // Anyone can read votes (for displaying vote counts)
+
+      allow read: if isAuthenticated();
+
+      // Users can only create/delete their own votes
+
+      // Vote document ID must match user ID (one vote per user)
+
+      allow create, delete: if isAuthenticated() && 
+
+        request.auth.uid == voteId;
+
+      // No updates allowed - votes are create/delete only
+
+    }
+
+    // COMMENTS SUBCOLLECTION  
+
+    match /ideas/{ideaId}/comments/{commentId} {
+
+      // Anyone can read comments (for displaying discussions)
+
+      allow read: if isAuthenticated();
+
+      // Users can create comments
+
+      // Must set themselves as the author
+
+      allow create: if isAuthenticated() && 
+
+        request.auth.uid == request.resource.data.authorId &&
+
+        request.resource.data.keys().hasAll(['content', 'authorId', 'authorName']);
+
+      // Users can edit their own comments
+
+      // Admins cannot edit other users' comments (only delete)
+
+      allow update: if isAuthenticated() && 
+
+        isOwner(resource.data.authorId);
+
+      // Users can delete their own comments
+
+      // Admins can delete any comment (for moderation)
+
+      allow delete: if isAuthenticated() && 
+
+        (isOwner(resource.data.authorId) || isAdmin());
+
+    }
+
+    // STATUSES COLLECTION (for admin customization)
+
+    match /statuses/{statusId} {
+
+      // Anyone can read available statuses
+
+      allow read: if isAuthenticated();
+
+      // Only admins can create, update, or delete status options
+
+      allow write: if isAdmin();
+
+    }
+
+    // EMAIL VERIFICATION TOKENS (temporary storage)
+
+    match /emailVerification/{tokenId} {
+
+      // Only allow read/write for the token validation process
+
+      // These should expire automatically or be cleaned up
+
+      allow read, write: if isAuthenticated();
+
+      // Auto-delete after 24 hours (handled by Cloud Functions)
+
+    }
+
+    // NOTIFICATIONS COLLECTION (optional)
+
+    match /notifications/{notificationId} {
+
+      // Users can read their own notifications
+
+      allow read: if isAuthenticated() && 
+
+        request.auth.uid == resource.data.userId;
+
+      // System can create notifications (via Cloud Functions)
+
+      allow create: if isAuthenticated();
+
+      // Users can mark their notifications as read
+
+      allow update: if isAuthenticated() && 
+
+        request.auth.uid == resource.data.userId;
+
+      // Admins can manage all notifications
+
+      allow read, write: if isAdmin();
+
+    }
+
+    // ANALYTICS COLLECTION (admin-only data)
+
+    match /analytics/{analyticsId} {
+
+      // Only admins can read analytics data
+
+      allow read: if isAdmin();
+
+      // Only system/admins can write analytics (via Cloud Functions)
+
+      allow write: if isAdmin();
+
+    }
+
+    // INVITATIONS COLLECTION (for user invites)
+
+    match /invitations/{invitationId} {
+
+      // Admins can read all invitations
+
+      allow read: if isAdmin();
+
+      // Only admins can create invitations
+
+      allow create: if isAdmin() &&
+
+        request.resource.data.keys().hasAll(['email', 'role', 'invitedBy', 'createdAt']);
+
+      // System can update invitation status when user accepts
+
+      allow update: if isAuthenticated();
+
+      // Admins can delete invitations
+
+      allow delete: if isAdmin();
+
+    }
+
+    // SYSTEM LOGS COLLECTION (audit trail)
+
+    match /systemLogs/{logId} {
+
+      // Only admins can read system logs
+
+      allow read: if isAdmin();
+
+      // Only system can write logs (via Cloud Functions)
+
+      // No direct writes allowed from client
+
+    }
+
+    // BLOCK ALL OTHER COLLECTIONS
+
+    // This ensures no unauthorized collections can be created
+
+    match /{document=**} {
+
+      allow read, write: if false;
+
+    }
+
+  }
+
+}
+ 
