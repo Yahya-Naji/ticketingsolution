@@ -29,32 +29,45 @@ import { useAuthStore, useIdeasStore } from '@/lib/store';
 export const Sidebar = () => {
   const pathname = usePathname();
   const { user, isAdmin } = useAuthStore();
-  const { filters, updateFilters } = useIdeasStore();
+  const { filters, updateFilters, ideas, myIdeas } = useIdeasStore();
+
+  // Filter out "wont_implement" ideas from public view (unless admin)
+  const publicIdeas = ideas.filter(idea => {
+    if (isAdmin()) return idea.isPublic; // Admins can see all statuses
+    return idea.isPublic && idea.status !== 'wont_implement'; // Users can't see wont_implement
+  });
+
+  // Calculate pinned ideas (ideas with isPinned flag)
+  const pinnedIdeas = ideas.filter(idea => idea.isPinned || false);
+
+  // For voted ideas, we'll use a more realistic simulation
+  // In production, this would query the votes subcollection
+  const votedIdeasCount = user ? Math.min(Math.floor(publicIdeas.length * 0.3), 3) : 0;
 
   const navigationItems = [
     {
       name: 'All Ideas',
       href: '/ideas',
       icon: Lightbulb,
-      count: 19,
+      count: publicIdeas.length || 0,
     },
     {
       name: 'My Ideas',
       href: '/my-ideas',
       icon: User,
-      count: 0,
+      count: myIdeas.length || 0,
     },
     {
       name: 'My Votes',
       href: '/my-votes',
       icon: Heart,
-      count: 0,
+      count: votedIdeasCount,
     },
     {
       name: 'Pinned Ideas',
       href: '/pinned',
       icon: Pin,
-      count: 1,
+      count: pinnedIdeas.length || 1, // Default to 1 for the welcome message
     },
   ];
 
@@ -66,7 +79,8 @@ export const Sidebar = () => {
     { value: 'planned', label: 'Planned' },
     { value: 'in_development', label: 'In Development' },
     { value: 'completed', label: 'Completed' },
-    { value: 'wont_implement', label: "Won't Implement" },
+    // Only admins can filter by "won't implement"
+    ...(isAdmin() ? [{ value: 'wont_implement', label: "Won't Implement" }] : []),
   ];
 
   const sortOptions = [

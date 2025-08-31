@@ -27,6 +27,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Idea, IdeaStatus } from '@/lib/types';
 import { useAuthStore, useIdeasStore } from '@/lib/store';
+import { toast } from 'sonner';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -70,9 +71,10 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
   onDelete 
 }) => {
   const { user, isAdmin } = useAuthStore();
-  const { voteOnIdea, unvoteIdea, checkUserVote } = useIdeasStore();
+  const { voteOnIdea, unvoteIdea, checkUserVote, pinIdea, unpinIdea, deleteIdea } = useIdeasStore();
   const [hasVoted, setHasVoted] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const loadVoteStatus = async () => {
@@ -113,6 +115,41 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     }
   };
 
+  const handlePin = async () => {
+    try {
+      if (idea.isPinned) {
+        await unpinIdea(idea.id);
+        toast.success('Idea unpinned');
+      } else {
+        await pinIdea(idea.id);
+        toast.success('Idea pinned');
+      }
+    } catch (error) {
+      console.error('Error toggling pin status:', error);
+      toast.error('Failed to update pin status');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this idea? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteIdea(idea.id);
+      toast.success('Idea deleted successfully');
+      if (onDelete) {
+        onDelete(idea.id);
+      }
+    } catch (error) {
+      console.error('Error deleting idea:', error);
+      toast.error('Failed to delete idea');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -133,6 +170,9 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-2">
+            {idea.isPinned && (
+              <Pin className="w-4 h-4 text-green-600" />
+            )}
             {!idea.isPublic && (
               <EyeOff className="w-4 h-4 text-gray-400" />
             )}
@@ -162,6 +202,10 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
                 
                 {isAdmin() && (
                   <>
+                    <DropdownMenuItem onClick={handlePin}>
+                      <Pin className="w-4 h-4 mr-2" />
+                      {idea.isPinned ? 'Unpin Idea' : 'Pin Idea'}
+                    </DropdownMenuItem>
                     <DropdownMenuItem>
                       <CheckCircle className="w-4 h-4 mr-2" />
                       Change Status
@@ -182,10 +226,11 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="text-red-600"
-                      onClick={() => onDelete?.(idea.id)}
+                      onClick={handleDelete}
+                      disabled={isDeleting}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
-                      Delete Idea
+                      {isDeleting ? 'Deleting...' : 'Delete Idea'}
                     </DropdownMenuItem>
                   </>
                 )}

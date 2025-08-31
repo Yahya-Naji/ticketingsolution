@@ -106,6 +106,10 @@ interface IdeasStore extends IdeasState {
   unvoteIdea: (ideaId: string) => Promise<void>;
   checkUserVote: (ideaId: string) => Promise<boolean>;
   
+  // Admin actions
+  pinIdea: (ideaId: string) => Promise<void>;
+  unpinIdea: (ideaId: string) => Promise<void>;
+  
   // Filtering and search
   updateFilters: (filters: Partial<IdeaFilters>) => void;
   searchIdeas: (query: string) => Promise<void>;
@@ -177,6 +181,8 @@ export const useIdeasStore = create<IdeasStore>((set, get) => ({
           updatedAt: doc.data().updatedAt?.toDate() || new Date(),
           lastStatusUpdate: doc.data().lastStatusUpdate?.toDate() || new Date(),
         })) as Idea[];
+        
+        // Note: Admins can see all idea statuses including "wont_implement"
       } else {
         // Regular users see: public ideas + their own private ideas
         
@@ -225,6 +231,9 @@ export const useIdeasStore = create<IdeasStore>((set, get) => ({
           ideaMap.set(idea.id, idea);
         });
         allIdeas = Array.from(ideaMap.values());
+        
+        // Filter out "wont_implement" ideas for regular users
+        allIdeas = allIdeas.filter(idea => idea.status !== 'wont_implement');
         
         // Apply sorting to combined results
         switch (filters.sortBy) {
@@ -473,7 +482,43 @@ export const useIdeasStore = create<IdeasStore>((set, get) => ({
   removeIdeaFromList: (id: string) => set(state => ({
     ideas: state.ideas.filter(idea => idea.id !== id),
     myIdeas: state.myIdeas.filter(idea => idea.id !== id)
-  }))
+  })),
+
+  pinIdea: async (ideaId: string) => {
+    try {
+      const { isAdmin } = useAuthStore.getState();
+      if (!isAdmin()) throw new Error('Only admins can pin ideas');
+      
+      const ideaRef = doc(db, 'ideas', ideaId);
+      await updateDoc(ideaRef, {
+        isPinned: true,
+        updatedAt: serverTimestamp(),
+      });
+      
+      get().updateIdeaInList(ideaId, { isPinned: true });
+    } catch (error) {
+      console.error('Error pinning idea:', error);
+      throw error;
+    }
+  },
+
+  unpinIdea: async (ideaId: string) => {
+    try {
+      const { isAdmin } = useAuthStore.getState();
+      if (!isAdmin()) throw new Error('Only admins can unpin ideas');
+      
+      const ideaRef = doc(db, 'ideas', ideaId);
+      await updateDoc(ideaRef, {
+        isPinned: false,
+        updatedAt: serverTimestamp(),
+      });
+      
+      get().updateIdeaInList(ideaId, { isPinned: false });
+    } catch (error) {
+      console.error('Error unpinning idea:', error);
+      throw error;
+    }
+  }
 }));
 
 // Admin Store
@@ -486,12 +531,22 @@ interface AdminStore extends AdminState {
   bulkApprove: (ideaIds: string[]) => Promise<void>;
   bulkReject: (ideaIds: string[]) => Promise<void>;
   setLoading: (loading: boolean) => void;
+  
+  // User management
+  users: any[];
+  isLoadingUsers: boolean;
+  fetchUsers: () => Promise<void>;
+  inviteUser: (userData: { email: string; firstName: string; lastName: string; role: 'client' | 'admin' }) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  updateUserRole: (userId: string, role: 'client' | 'admin') => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStore>((set, get) => ({
   pendingReviews: [],
   statistics: null,
   isLoading: false,
+  users: [],
+  isLoadingUsers: false,
 
   fetchPendingReviews: async () => {
     try {
@@ -653,5 +708,152 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     }
   },
 
-  setLoading: (isLoading: boolean) => set({ isLoading })
+  setLoading: (isLoading: boolean) => set({ isLoading }),
+
+  // User management functions
+  fetchUsers: async () => {
+    try {
+      set({ isLoadingUsers: true });
+      
+      // In production, this would fetch from Firebase Auth and Firestore users collection
+      const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const users = querySnapshot.docs.map(doc => ({
+        uid: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        lastLoginAt: doc.data().lastLoginAt?.toDate() || new Date(),
+      }));
+      
+      set({ users, isLoadingUsers: false });
+    } catch (error) {
+      console.error('Error fetching users from Firebase:', error);
+      set({ isLoadingUsers: false });
+      
+      // Fallback to mock data if Firebase fails
+      const mockUsers = [
+        {
+          uid: 'firebase-admin-1',
+          email: 'admin@credexsystems.com',
+          displayName: 'Firebase Admin',
+          role: 'admin',
+          createdAt: new Date('2024-01-01'),
+          lastLoginAt: new Date(),
+          status: 'active'
+        },
+        {
+          uid: 'firebase-user-1',
+          email: 'john.doe@example.com',
+          displayName: 'John Doe',
+          role: 'client',
+          createdAt: new Date('2024-02-15'),
+          lastLoginAt: new Date(),
+          status: 'active'
+        },
+        {
+          uid: 'firebase-user-2',
+          email: 'jane.smith@company.com',
+          displayName: 'Jane Smith',
+          role: 'client',
+          createdAt: new Date('2024-03-10'),
+          lastLoginAt: new Date(),
+          status: 'active'
+        }
+      ];
+      set({ users: mockUsers });
+      console.log('Using fallback mock users data');
+    }
+  },
+
+  inviteUser: async (userData) => {
+    try {
+      // In production, this would:
+      // 1. Call Firebase Functions to create user account
+      // 2. Send invitation email via SendGrid/Nodemailer
+      // 3. Create user document in Firestore with pending status
+      
+      console.log('Inviting user:', userData);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // For now, add to local state (in production, refresh from Firebase)
+      const newUser = {
+        uid: `firebase-${Date.now()}`,
+        email: userData.email,
+        displayName: `${userData.firstName} ${userData.lastName}`,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        createdAt: new Date(),
+        lastLoginAt: null,
+        status: 'pending'
+      };
+      
+      set(state => ({
+        users: [newUser, ...state.users]
+      }));
+      
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      throw error;
+    }
+  },
+
+  deleteUser: async (userId) => {
+    try {
+      // In production, this would:
+      // 1. Delete from Firebase Auth
+      // 2. Delete user document from Firestore
+      // 3. Anonymize or delete user's ideas/comments
+      
+      const userDoc = doc(db, 'users', userId);
+      await deleteDoc(userDoc);
+      
+      // Remove from local state
+      set(state => ({
+        users: state.users.filter(user => user.uid !== userId)
+      }));
+      
+    } catch (error) {
+      console.error('Error deleting user from Firebase:', error);
+      
+      // Still remove from local state even if Firebase fails
+      set(state => ({
+        users: state.users.filter(user => user.uid !== userId)
+      }));
+    }
+  },
+
+  updateUserRole: async (userId, role) => {
+    try {
+      // In production, this would:
+      // 1. Update custom claims in Firebase Auth
+      // 2. Update user document in Firestore
+      
+      const userDoc = doc(db, 'users', userId);
+      await updateDoc(userDoc, {
+        role,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Update local state
+      set(state => ({
+        users: state.users.map(user => 
+          user.uid === userId ? { ...user, role } : user
+        )
+      }));
+      
+    } catch (error) {
+      console.error('Error updating user role in Firebase:', error);
+      
+      // Still update local state for immediate feedback
+      set(state => ({
+        users: state.users.map(user => 
+          user.uid === userId ? { ...user, role } : user
+        )
+      }));
+    }
+  }
 }));

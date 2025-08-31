@@ -28,6 +28,7 @@ export interface Idea {
   authorName: string;
   status: IdeaStatus;
   isPublic: boolean;
+  isPinned?: boolean;
   voteCount: number;
   commentCount: number;
   createdAt: Date;

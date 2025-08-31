@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { GlobalSearch } from '@/components/ui/global-search';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,14 +55,7 @@ export const Header = () => {
 
           {/* Search Bar */}
           <div className="flex-1 max-w-lg mx-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Search all ideas..."
-                className="pl-10 w-full"
-              />
-            </div>
+            <GlobalSearch />
           </div>
 
           {/* User Menu */}
