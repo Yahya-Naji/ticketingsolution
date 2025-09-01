@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Search, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlobalSearch } from '@/components/ui/global-search';
+import { Badge } from '@/components/ui/badge'; // Import Badge component
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,14 +43,12 @@ export const Header = () => {
   return (
     <header className="border-b bg-white">
       <div className="w-full px-4 sm:px-6 lg:pl-8 lg:pr-2">
-        <div className="flex items-center justify-between h-16 max-w-none">
+        <div className="flex items-center justify-between h-56 max-w-none">
           {/* Logo and Title */}
-          <div className="flex items-center space-x-4 min-w-0 flex-shrink-0">
-            <Link href="/ideas" className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4 min-w-0">
+            <Link href="/ideas">
               <CredexLogo />
-              <span className="text-lg font-medium text-gray-900 hidden sm:block">
-                Ideas Portal
-              </span>
+              
             </Link>
           </div>
 
@@ -69,6 +68,11 @@ export const Header = () => {
                         {getInitials(user.displayName)}
                       </AvatarFallback>
                     </Avatar>
+                    {user.role === 'admin' && (
+                      <Badge className="absolute bottom-0 right-0 h-3 px-0.5 text-[0.5rem] bg-red-500 text-white rounded-full flex items-center justify-center border-2 border-white leading-none transform translate-x-1/3 translate-y-1/3">
+                        Admin
+                      </Badge>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
