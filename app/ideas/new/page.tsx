@@ -11,15 +11,18 @@ import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor'; // Import the new component
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useAuthStore } from '@/lib/store';
 import { AuthDebug } from '@/components/debug/auth-debug';
+import { ArrowLeft } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
+import { Paperclip } from 'lucide-react';
 
 const ideaSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be less than 100 characters'),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(1000, 'Description must be less than 1000 characters'),
+  description: z.string().min(1, 'Description is required'),
 });
 
 type IdeaForm = z.infer<typeof ideaSchema>;
@@ -35,6 +38,7 @@ export default function NewIdeaPage() {
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<IdeaForm>({
     resolver: zodResolver(ideaSchema),
   });
@@ -131,16 +135,15 @@ export default function NewIdeaPage() {
       <Header />
       
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Submit a New Idea</h1>
-          <p className="text-gray-600">
-            Share your innovative ideas and suggestions to help improve Unity software.
-          </p>
-        </div>
-
+        <Link href="/ideas" className="inline-flex items-center text-green-700 hover:text-green-800 mb-6">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to all ideas
+        </Link>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2"></h1>
+        
         <Card>
           <CardHeader>
-            <h2 className="text-lg font-semibold">Idea Details</h2>
+            <h2 className="text-lg font-semibold">Add Idea</h2>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -152,12 +155,12 @@ export default function NewIdeaPage() {
 
               <div>
                 <Label htmlFor="title" className="text-gray-700">
-                  Idea Title *
+                  Your idea <span className="text-xs text-muted-foreground">(Required)</span>
                 </Label>
                 <Input
                   id="title"
                   type="text"
-                  placeholder="Enter a clear, descriptive title for your idea"
+                  placeholder="One sentence summary of the idea"
                   {...register('title')}
                   className="mt-1"
                 />
@@ -166,46 +169,49 @@ export default function NewIdeaPage() {
                 )}
               </div>
 
+              {/* Similar Ideas Section */}
+              <div className="border border-gray-200 bg-gray-50 rounded-md p-4 flex items-center justify-center text-center space-x-2">
+                <Lightbulb className="h-5 w-5 text-gray-500" />
+                <p className="text-sm text-gray-500">
+                  Any similar ideas will appear here when you start typing. Consider
+                  voting for them before you create a new idea.
+                </p>
+              </div>
+
               <div>
                 <Label htmlFor="description" className="text-gray-700">
-                  Description *
+                  Please add more details
                 </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your idea in detail. What problem does it solve? How would it work? What benefits would it provide?"
-                  {...register('description')}
-                  className="mt-1 min-h-[120px]"
+                <RichTextEditor
+                  value={description}
+                  onChange={value => {
+                    if (value === '<p><br></p>') {
+                      setValue('description', '');
+                    } else {
+                      setValue('description', value);
+                    }
+                  }}
+                  placeholder="Why is it useful, who would benefit from it, how should it work?"
                 />
-                <div className="flex justify-between items-center mt-1">
-                  {errors.description && (
-                    <p className="text-red-600 text-sm">{errors.description.message}</p>
-                  )}
-                  <span className="text-sm text-gray-500 ml-auto">
-                    {description.length}/1000
-                  </span>
-                </div>
+                {errors.description && (
+                  <p className="text-red-600 text-sm mt-1">{errors.description.message}</p>
+                )}
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <h3 className="font-medium text-blue-900 mb-2">What happens next?</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Your idea will be submitted as private and reviewed by our team</li>
-                  <li>• We&apos;ll send a notification to our development team</li>
-                  <li>• Once approved, your idea will be visible to other users</li>
-                  <li>• You&apos;ll receive updates on the status of your idea</li>
-                </ul>
-              </div>
+              <Link href="#" className="inline-flex items-center text-gray-600 hover:text-gray-800 text-sm mb-6">
+                <Paperclip className="h-4 w-4 mr-2" />
+                Attach files
+              </Link>
 
-              <div className="flex items-center justify-between pt-4">
-                <Button variant="outline" asChild>
-                  <Link href="/ideas">Cancel</Link>
-                </Button>
+             
+
+              <div className="flex items-center justify-end pt-4">
                 <Button
                   type="submit"
                   className="bg-green-700 hover:bg-green-800"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Submitting...' : 'Submit Idea'}
+                  {isLoading ? 'Adding Idea...' : 'ADD IDEA'}
                 </Button>
               </div>
             </form>

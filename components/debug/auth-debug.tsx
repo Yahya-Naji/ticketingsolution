@@ -7,8 +7,8 @@ export const AuthDebug: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
   return (
-    <div className="fixed bottom-4 right-4 bg-black text-white p-4 rounded-lg text-xs max-w-sm">
-      <h3 className="font-bold mb-2">🔍 Auth Debug</h3>
+    <div className="">
+      {/* <h3 className="font-bold mb-2">🔍 Auth Debug</h3>
       <div className="space-y-1">
         <div>Loading: {isLoading ? '✅' : '❌'}</div>
         <div>Authenticated: {isAuthenticated ? '✅' : '❌'}</div>
@@ -21,7 +21,7 @@ export const AuthDebug: React.FC = () => {
             <div>Name: {user.displayName}</div>
           </>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

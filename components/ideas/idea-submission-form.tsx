@@ -148,17 +148,7 @@ export const IdeaSubmissionForm: React.FC<IdeaSubmissionFormProps> = ({
             </p>
           </div>
           
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-900 mb-2">
-              What happens next?
-            </h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Your idea will be submitted as private initially</li>
-              <li>• Our team will review and may make it public</li>
-              <li>• Once public, other users can vote and comment</li>
-              <li>• You'll be notified of status updates</li>
-            </ul>
-          </div>
+          
           
           <div className="flex items-center justify-end space-x-3">
             {onCancel && (
